@@ -1,4 +1,4 @@
-class ProductModel {
+class Product {
   final int id;
   final String title;
   final double price;
@@ -7,7 +7,7 @@ class ProductModel {
   final String category;
   final double? rating;
 
-  ProductModel({
+  const Product({
     required this.id,
     required this.title,
     required this.price,
@@ -17,18 +17,17 @@ class ProductModel {
     this.rating,
   });
 
-  factory ProductModel.fromJson(Map<String, dynamic> json) {
+  factory Product.fromJson(Map<String, dynamic> json) {
     double? extractedRating;
     try {
       if (json["rating"] != null && json["rating"] is Map) {
         extractedRating = (json["rating"]["rate"] as num?)?.toDouble();
       }
     } catch (e) {
-      // Se houver erro ao extrair rating, apenas ignora
       extractedRating = null;
     }
 
-    return ProductModel(
+    return Product(
       id: json["id"],
       title: json["title"],
       price: (json["price"] as num).toDouble(),

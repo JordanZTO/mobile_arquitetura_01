@@ -8,12 +8,28 @@ class ProductRemoteDatasource {
   ProductRemoteDatasource(this.client);
 
   Future<List<ProductModel>> getProducts() async {
-    final response = await client.get(
-      Uri.parse("https://fakestoreapi.com/products"),
-    );
+    try {
+      print('[ProductRemoteDatasource] Iniciando requisição para API');
+      final response = await client.get(
+        Uri.parse("https://fakestoreapi.com/products"),
+      ).timeout(const Duration(seconds: 10));
 
-    final List data = jsonDecode(response.body);
+      print('[ProductRemoteDatasource] Status: ${response.statusCode}');
+      
+      if (response.statusCode != 200) {
+        throw Exception('Erro HTTP ${response.statusCode}');
+      }
 
-    return data.map((json) => ProductModel.fromJson(json)).toList();
+      final List data = jsonDecode(response.body);
+      print('[ProductRemoteDatasource] Produtos recebidos: ${data.length}');
+
+      final products = data.map((json) => ProductModel.fromJson(json)).toList();
+      print('[ProductRemoteDatasource] Produtos parseados: ${products.length}');
+      
+      return products;
+    } catch (e) {
+      print('[ProductRemoteDatasource] Erro: $e');
+      rethrow;
+    }
   }
 }

@@ -1,32 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-import 'data/datasources/product_remote_datasource.dart';
-import 'data/repositories/product_repository_impl.dart';
-import 'presentation/viewmodels/product_viewmodel.dart';
-import 'presentation/pages/product_page.dart';
-import 'data/datasources/product_cache_datasource.dart';
+import 'screens/home_screen.dart';
+import 'services/product_service.dart';
 
 void main() {
-  final remote = ProductRemoteDatasource(http.Client());
-  final cache = ProductCacheDatasource();
-
-  final repository = ProductRepositoryImpl(remote, cache);
-  final viewModel = ProductViewModel(repository);
-
-  runApp(MyApp(viewModel));
+  final productService = ProductService(http.Client());
+  runApp(MyApp(productService: productService));
 }
 
 class MyApp extends StatelessWidget {
-  final ProductViewModel viewModel;
+  final ProductService productService;
 
-  const MyApp(this.viewModel, {super.key});
+  const MyApp({super.key, required this.productService});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Product App',
-      home: ProductPage(viewModel: viewModel),
+      title: 'Product Store',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        useMaterial3: true,
+      ),
+      home: HomeScreen(productService: productService),
     );
   }
 }
