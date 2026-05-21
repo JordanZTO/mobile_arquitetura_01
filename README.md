@@ -1,17 +1,95 @@
-# Questionário de Reflexão — Atividade 2
+# Product App
 
-## 1. Em qual camada foi implementado o mecanismo de cache?
+Projeto mobile desenvolvido em Flutter para fins estudantis. A aplicacao esta sendo evoluida ao longo das aulas para praticar arquitetura, consumo de API, separacao de responsabilidades, tratamento de estado, cache simples e fluxo de autenticacao.
 
-O mecanismo de cache foi implementado na **camada de Data**, na classe `ProductCacheDatasource`. Essa decisão é adequada porque a camada de Data é responsável por gerenciar as fontes de dados da aplicação, como API, cache ou banco de dados. Assim, a lógica de armazenamento temporário fica separada da interface e da lógica de negócio, mantendo o projeto organizado.
+Atualmente o app consome a API DummyJSON para autenticar usuarios e listar produtos. Antes de acessar a listagem, o usuario precisa realizar login.
 
-## 2. Por que o ViewModel não deve realizar chamadas HTTP diretamente?
+## O que o projeto contem
 
-O ViewModel pertence à camada de **Presentation**, cuja responsabilidade é apenas controlar o estado da interface. As chamadas HTTP devem ser feitas na camada de **Data**, através do repositório. Isso mantém o código desacoplado, facilita testes e permite trocar a fonte de dados sem alterar a interface.
+- Tela de login com usuario e senha.
+- Validacao de campos obrigatorios.
+- Autenticacao usando `POST /auth/login` da DummyJSON.
+- Tratamento de erro para credenciais invalidas.
+- Sessao do usuario autenticado em memoria.
+- Persistencia do token com `shared_preferences`.
+- Verificacao de sessao ativa ao iniciar o app.
+- Listagem de produtos usando `GET /products`.
+- Tela de detalhes usando `GET /products/{id}`.
+- Nome e imagem do usuario autenticado no AppBar.
+- Botao de logout.
+- Botao para atualizar manualmente a lista de produtos.
+- Separacao basica entre modelos, servicos, sessao e telas.
 
-## 3. O que poderia acontecer se a interface acessasse diretamente o DataSource?
+## Tecnologias usadas
 
-Se a interface acessasse diretamente o DataSource, haveria um forte **acoplamento entre a interface e a camada de dados**. Isso tornaria o código mais difícil de manter, testar e modificar. Além disso, qualquer mudança na forma de obtenção dos dados poderia exigir alterações na interface.
+- Flutter
+- Dart
+- HTTP package
+- Shared Preferences
+- DummyJSON API
 
-## 4. Como essa arquitetura facilitaria a substituição da API por um banco de dados local?
+## Estrutura principal
 
-Essa arquitetura facilita a substituição porque o ViewModel depende apenas da **interface `ProductRepository`**, e não de uma implementação específica. Assim, seria possível criar uma nova implementação do repositório usando um banco de dados local, sem precisar alterar a interface ou o ViewModel.
+```text
+lib/
+  main.dart
+  models/
+    authenticated_user.dart
+    product.dart
+  screens/
+    login_screen.dart
+    splash_screen.dart
+    product_list_screen.dart
+    product_detail_screen.dart
+  services/
+    api_headers.dart
+    auth_service.dart
+    product_service.dart
+    session_manager.dart
+  widgets/
+    product_card.dart
+```
+
+O projeto tambem contem uma estrutura de estudo em camadas, com pastas como `data`, `domain` e `presentation`, usada durante a evolucao das atividades.
+
+## Credenciais para teste
+
+Use um usuario de teste da DummyJSON:
+
+```text
+Usuario: emilys
+Senha: emilyspass
+```
+
+## Como rodar o projeto
+
+1. Entre na pasta do projeto:
+
+```bash
+cd mobile_arquitetura_02-main
+```
+
+2. Instale as dependencias:
+
+```bash
+flutter pub get
+```
+
+3. Rode o app:
+
+```bash
+flutter run
+```
+
+Para rodar no navegador:
+
+```bash
+flutter run -d chrome
+```
+
+Ou usando um servidor web local:
+
+```bash
+flutter run -d web-server
+```
+
