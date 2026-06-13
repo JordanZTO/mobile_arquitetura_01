@@ -23,6 +23,7 @@ class ProductDetailScreen extends StatefulWidget {
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   late Future<Product> _productFuture;
   late Future<bool> _isFavoriteFuture;
+  bool _favoritesModified = false;
 
   @override
   void initState() {
@@ -64,6 +65,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       setState(() {
         _isFavoriteFuture =
             widget.favoritesService.isFavorite(widget.productId);
+        _favoritesModified = true;
       });
     }
   }
@@ -71,7 +73,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Detalhes"), elevation: 0),
+      appBar: AppBar(
+        title: const Text("Detalhes"),
+        elevation: 0,
+        leading: BackButton(
+          onPressed: () {
+            Navigator.of(context).pop(_favoritesModified);
+          },
+        ),
+      ),
       body: FutureBuilder<Product>(
         future: _productFuture,
         builder: (context, snapshot) {
@@ -233,30 +243,15 @@ class _ProductDetails extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 30),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Adicionado ao carrinho")),
-                    );
-                  },
-                  icon: const Icon(Icons.shopping_cart),
-                  label: const Text("Carrinho"),
-                ),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: onFavoriteToggle,
+              icon: Icon(
+                isFavorite ? Icons.favorite : Icons.favorite_border,
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: onFavoriteToggle,
-                  icon: Icon(
-                    isFavorite ? Icons.favorite : Icons.favorite_border,
-                  ),
-                  label: Text(isFavorite ? "Favoritado" : "Favoritar"),
-                ),
-              ),
-            ],
+              label: Text(isFavorite ? "Favoritado" : "Favoritar"),
+            ),
           ),
         ],
       ),

@@ -5,38 +5,22 @@
 ```
 lib/
 ├── main.dart                              # Ponto de entrada da aplicação
-├── core/
-│   └── errors/
-│       └── failure.dart                   # Classes para tratamento de erros
 ├── models/
 │   ├── product.dart                       # Modelo Product com fromJson/toJson
 │   └── authenticated_user.dart            # Modelo de usuário autenticado
 ├── services/
 │   ├── api_headers.dart                   # Headers customizados para requisições
-│   ├── auth_service.dart                  # Serviço de autenticação e login
-│   ├── product_service.dart               # Serviço de API (encapsula http)
-│   ├── favorites_service.dart             # Serviço de favoritos
-│   └── session_manager.dart               # Gerenciamento de sessão de usuário
-├── data/
-│   ├── datasources/                       # Fontes de dados (placeholder)
-│   ├── models/                            # Models específicos de dados
-│   └── repositories/                      # Implementações de repositórios
-├── domain/
-│   ├── entities/                          # Entidades do domínio
-│   └── repositories/                      # Interfaces de repositórios
-├── presentation/
-│   ├── pages/                             # Páginas da aplicação
-│   └── viewmodels/                        # ViewModels para gerenciamento de estado
+│   ├── auth_service.dart                  # Serviço de autenticação com POST /auth/login
+│   ├── product_service.dart               # Serviço de produtos com GET /products e cache
+│   ├── favorites_service.dart             # Serviço de favoritos com SharedPreferences
+│   └── session_manager.dart               # Gerenciamento de sessão e persistência de token
 ├── screens/
-│   ├── splash_screen.dart                 # Tela de carregamento inicial
-│   ├── login_screen.dart                  # Tela de autenticação
-│   ├── home_screen.dart                   # Tela inicial
-│   ├── product_list_screen.dart           # Listagem de produtos (FutureBuilder)
-│   ├── product_detail_screen.dart         # Detalhes + ações (Edit/Delete)
-│   └── product_form_screen.dart           # Formulário para Create/Edit
+│   ├── splash_screen.dart                 # Tela inicial que verifica autenticação
+│   ├── login_screen.dart                  # Tela de login com validação
+│   ├── product_list_screen.dart           # Lista de produtos em grid (2 colunas)
+│   └── product_detail_screen.dart         # Detalhes do produto com favorito
 └── widgets/
-    ├── product_card.dart                  # Card reutilizável para produtos
-    └── form_widgets.dart                  # Componentes de formulário
+    └── product_card.dart                  # Card reutilizável para produtos na lista
 ```
 
 ---
@@ -45,259 +29,260 @@ lib/
 
 ### 1. **Modelos de Dados** (`models/`)
 
-#### Product (`models/product.dart`)
-```dart
-class Product {
-  final int id;
-  final String title;
-  final double price;
-  final String image;
-  final String description;
-  final String category;
-  final double? rating;
-  
-  factory Product.fromJson(Map<String, dynamic> json) { ... }
-  Map<String, dynamic> toJson() { ... }
-}
-```
+#### Product (`product.dart`)
+- **Propriedades**: id, title, price, image, description, category, rating, brand, stock, discountPercentage, thumbnail, images
+- **fromJson()**: Desserializa resposta da DummyJSON
+- **toJson()**: Serializa para envio à API
+- **Ajustado**: Trata rating como num ou Map (compatível com DummyJSON)
 
-#### AuthenticatedUser (`models/authenticated_user.dart`)
-```dart
-class AuthenticatedUser {
-  final String id;
-  final String email;
-  final String name;
-  final String? token;
-  
-  factory AuthenticatedUser.fromJson(Map<String, dynamic> json) { ... }
-  Map<String, dynamic> toJson() { ... }
-}
-```
+#### AuthenticatedUser (`authenticated_user.dart`)
+- **Propriedades**: id, email, firstName, lastName, fullName, image, accessToken, refreshToken
+- **fromJson()**: Desserializa resposta de `/auth/login`
+- **toJson()**: Serializa dados do usuário
+- **copyWith()**: Cria cópia com campos atualizados
 
 ---
 
 ### 2. **Serviços** (`services/`)
 
-#### ApiHeaders (`services/api_headers.dart`)
-- Headers customizados para requisições HTTP
-- Gerencia tokens de autenticação
-- Método: `getHeaders()` → `Map<String, String>`
+#### ApiHeaders (`api_headers.dart`)
+- `json()`: Retorna headers com Content-Type application/json
+- `withToken(token)`: Retorna headers com Bearer token para requisições autenticadas
 
-#### AuthService (`services/auth_service.dart`)
-- Gerencia autenticação e login de usuário
-- Métodos principais:
-  - `login(email, password)`: Autentica usuário
-  - `logout()`: Encerra sessão
-  - `isAuthenticated()`: Verifica se usuário está logado
-  - `getCurrentUser()`: Obtém usuário atual
+#### AuthService (`auth_service.dart`)
+- **login(username, password)**: `POST /auth/login` da DummyJSON
+  - Envia credenciais, retorna AuthenticatedUser
+  - Throws `AuthException` se credenciais inválidas
+  - Timeout: 10 segundos
+- **getCurrentUser(accessToken)**: `GET /auth/me` para validar token
+  - Usa para restaurar sessão
+- **Tratamento de erro**: Retorna mensagens customizadas
 
 #### ProductService (`services/product_service.dart`)
-- Encapsula todas as chamadas HTTP para produtos
-- Métodos principais:
-  - `fetchProducts()`: GET (lista completa)
-  - `addProduct(Product)`: POST (criar novo)
-  - `updateProduct(Product)`: PUT (editar)
-  - `deleteProduct(int id)`: DELETE (remover)
-  - `getProductById(int id)`: Busca específica
-  - `getCachedProducts()`: Retorna cache local
+- **fetchProducts()**: `GET /products` da DummyJSON
+  - Retorna List<Product>
+  - Cache em memória como fallback
+  - Timeout: 10 segundos
+- **fetchProductById(id)**: `GET /products/{id}`
+  - Busca específica de um produto
+  - Atualiza cache local
+- **getProductById(id)**: Acessa cache sem requisição
+- **Cache Strategy**: Se requisição falhar, retorna dados cacheados
 
 #### FavoritesService (`services/favorites_service.dart`)
-- Gerencia favoritos do usuário
-- Métodos:
-  - `addFavorite(int productId)`: Adiciona aos favoritos
-  - `removeFavorite(int productId)`: Remove dos favoritos
-  - `getFavorites()`: Lista de IDs de favoritos
-  - `isFavorite(int productId)`: Verifica se é favorito
+- **addFavorite(productId)**: Salva ID em SharedPreferences
+- **removeFavorite(productId)**: Remove ID de SharedPreferences
+- **isFavorite(productId)**: Verifica se está nos favoritos
+- **getFavorites()**: Retorna List<int> de IDs salvos
+- **clearFavorites()**: Limpa todos os favoritos
+- **Persistência**: Dados salvos localmente no dispositivo
 
 #### SessionManager (`services/session_manager.dart`)
-- Gerencia estado de sessão do usuário
-- Métodos:
-  - `saveSession(AuthenticatedUser)`: Salva sessão
-  - `getSession()`: Recupera sessão ativa
-  - `clearSession()`: Limpa sessão
-  - `isSessionValid()`: Valida sessão
-
-**Recursos Comuns:**
-- Cache em memória como fallback
-- Timeout de 10 segundos
-- Logs para debug
-- Tratamento de erros
+- **login(username, password)**: Autentica via AuthService e salva token
+- **restoreSession()**: Recupera token salvo ao iniciar app
+- **getCurrentUser()**: Retorna usuário autenticado
+- **isAuthenticated**: Getter que verifica se há sessão ativa
+- **accessToken**: Getter que retorna token
+- **logout()**: Limpa sessão e token
+- **clearSession()**: Remove dados de SharedPreferences
+- **Extends ChangeNotifier**: Notifica listeners quando estado muda
 
 ---
 
 ### 3. **Telas (Screens)**
 
-#### SplashScreen
-- Tela de carregamento inicial
-- Exibe logo/brand da aplicação
-- Verifica sessão do usuário
-- Navega para LoginScreen ou HomeScreen
+#### SplashScreen (`splash_screen.dart`)
+- **Função**: Tela inicial da app
+- **Fluxo**:
+  1. Carrega app
+  2. Chama `sessionManager.restoreSession()`
+  3. Se token válido → vai para ProductListScreen
+  4. Se sem token → vai para LoginScreen
+- **Segurança**: Bloqueia acesso sem autenticação
 
-#### LoginScreen
-- Tela de autenticação
-- Campos: Email e Senha
-- Validação de credenciais
-- Botão "Entrar" → Valida e navega para HomeScreen
-- Link "Cadastro" (placeholder)
+#### LoginScreen (`login_screen.dart`)
+- **Validação**:
+  - Username não vazio
+  - Password não vazio
+- **Campos**:
+  - TextFormField para username
+  - TextFormField para password (com toggle show/hide)
+- **Ações**:
+  - Botão "Entrar" faz login e navega para ProductListScreen
+  - Mostra loading durante requisição
+  - Exibe SnackBar com erro se credenciais inválidas
+- **Error Handling**: Captura AuthException e mostra mensagem
 
-#### HomeScreen
-- Tela inicial com apresentação
-- Exibe informações do usuário logado
-- Botão "View Products" → ProductListScreen
-- Menu com opções (Favoritos, Logout, etc.)
+#### ProductListScreen (`product_list_screen.dart`)
+- **Carregamento**: FutureBuilder para `fetchProducts()`
+- **Layout**: GridView com 2 colunas
+- **Cards**: ProductCard reutilizável para cada produto
+- **Favoritos**:
+  - Carrega lista de favoritos ao iniciar
+  - Exibe ícone preenchido/vazio em cada card
+  - Toggle ao clicar no ícone
+  - Sincroniza estado em tempo real
+- **AppBar**:
+  - Mostra "Produtos" como título
+  - Exibe nome do usuário autenticado
+  - Foto de perfil do usuário
+  - Botão de refresh
+  - Botão de logout (com confirmação)
+- **Erros**: Mostra spinner se carregando, erro se falhar
+- **Botão Floating**: Atualiza manual da lista
 
-#### ProductListScreen
-- **FutureBuilder** para carregar produtos
-- **GridView** com 2 colunas
-- Cards reutilizáveis (ProductCard)
-- Tap em produto → ProductDetailScreen
-- Botão Retry em caso de erro
-- Ícone de favorito em cada card
-
-#### ProductDetailScreen
-- Exibição completa do produto
-- Botões de ação:
-  - **Add to Cart** (simulado com Snackbar)
-  - **Favorite** (toggle favorito)
-  - **Edit** → ProductFormScreen
-  - **Delete** (com diálogo de confirmação)
-- Exibe avaliação e categoria
-
-#### ProductFormScreen
-- Formulário para CREATE e EDIT
-- **Validação** de campos obrigatórios
-- Mesma tela para ambas operações (diferencia por ID)
-- Campos: Título, Preço, Descrição, Categoria, Imagem
-- Botões: Save/Update e Cancel
+#### ProductDetailScreen (`product_detail_screen.dart`)
+- **Exibição**:
+  - Imagem grande do produto
+  - Título, marca, categoria (chips)
+  - Preço em verde
+  - Rating com estrela
+  - Estoque e desconto (se houver)
+  - Descrição completa
+- **Ações**:
+  - Botão "Favoritar/Favoritado" (toggle)
+  - Muda entre coração vazio/preenchido
+- **Navegação**:
+  - BackButton volta para lista
+  - Passa `true` se favorito foi modificado
+  - ProductListScreen recarrega favoritos se necessário
+- **Estados**: FutureBuilder para carregar produto
 
 ---
 
 ### 4. **Widgets Reutilizáveis** (`widgets/`)
 
-#### ProductCard
-- Card com imagem, título, preço, rating
-- Ícone de favorito (toggle)
-- Padrão para exibição em grid
-- Reutilizável em qualquer contexto
-
-#### FormTextField
-- Campo de texto reutilizável
-- Suporta validação e erro messages
-- Label, maxLines, keyboardType personalizáveis
-- Máscara de entrada (opcional)
-
-#### ActionButton
-- Botão reutilizável com ícone
-- Pode ser primary ou outlined
-- Consistência visual em toda app
-- Suporta loading state
-
----
-
-### 5. **Estrutura de Camadas** (`core/`, `domain/`, `data/`, `presentation/`)
-
-#### core/ - Camada de Núcleo
-- **errors/failure.dart**: Classes base para tratamento de erros
-- Utilitários compartilhados
-
-#### domain/ - Lógica de Negócio
-- **entities/**: Modelos puros de domínio
-- **repositories/**: Interfaces/contratos de acesso a dados
-
-#### data/ - Acesso a Dados
-- **datasources/**: Definição de fontes de dados (local, remote)
-- **models/**: Modelos específicos de serialização
-- **repositories/**: Implementações dos contratos
-
-#### presentation/ - Apresentação
-- **pages/**: Páginas da aplicação
-- **viewmodels/**: Gerenciamento de estado avançado (MVVM)
+#### ProductCard (`product_card.dart`)
+- **Exibição**:
+  - Imagem do produto (com erro handler)
+  - Título (máx 2 linhas)
+  - Preço em verde (destaque)
+  - Rating com ícone de estrela
+- **Favorito**:
+  - Ícone no canto superior direito
+  - Coração cheio (vermelho) se favorito
+  - Coração vazio (cinza) se não favorito
+  - Sombra branca ao fundo
+- **Interação**:
+  - `onTap`: Navega para detalhes
+  - `onFavoriteTap`: Toggle favorito
+- **Props**: 
+  - `product`: Dados do produto
+  - `isFavorite`: Status de favorito
+  - `onTap`: Callback ao clicar no card
+  - `onFavoriteTap`: Callback ao clicar no ícone
 
 ---
 
-## Fluxo de Navegação
+## Fluxo de Dados e Navegação
 
 ```
 main.dart
-    ↓
-SplashScreen (Verificação de sessão)
-    ├── [Sessão válida?] → HomeScreen
-    └── [Sessão inválida?] → LoginScreen
-    ↓
-LoginScreen (Autenticação)
-    ├── [Login bem-sucedido] → HomeScreen
-    └── [Tentar novamente] → LoginScreen
-    ↓
-HomeScreen (Bem-vindo)
-    ├── [View Products]
-    ├── [Favorites]
-    └── [Logout] → LoginScreen
-    ↓
-ProductListScreen (Grid de produtos)
-    ├── [Tap em produto]
-    ├── [Favorite icon] → Toggle favorito
-    ↓
-ProductDetailScreen (Detalhes)
-    ├── [Add to Cart] → Snackbar
-    ├── [Favorite] → Toggle + atualiza
-    ├── [Edit] → ProductFormScreen
-    │           ├── [Save] → Atualiza + volta para Detail
-    │           └── [Cancel] → Volta sem salvar
-    ├── [Delete] → Diálogo de confirmação
-    │           └── [Confirmar] → Volta à lista
-    └── [Back] → ProductListScreen
+    ↓ (cria serviços)
+    
+SplashScreen
+    ├─ restoreSession()
+    ├─ [Token válido?] ✓ → ProductListScreen
+    └─ [Token inválido?] ✗ → LoginScreen
+    
+LoginScreen
+    ├─ sessionManager.login(username, password)
+    ├─ [Login ok?] ✓ → ProductListScreen (NavigatorPushReplacement)
+    └─ [Login falhou?] ✗ → Mostra erro + fica na tela
+    
+ProductListScreen
+    ├─ Carrega products via productService.fetchProducts()
+    ├─ Carrega favoritos via favoritesService.getFavorites()
+    ├─ [Clica em produto]
+    │   ├─ Navigator.push → ProductDetailScreen
+    │   └─ Volta com then().loadFavorites() se modificou
+    ├─ [Clica no coração]
+    │   └─ Chama _toggleFavorite(productId)
+    └─ [Botão logout]
+        └─ sessionManager.logout() → LoginScreen
+        
+ProductDetailScreen
+    ├─ Carrega product via productService.fetchProductById(id)
+    ├─ Carrega isFavorite via favoritesService.isFavorite(id)
+    ├─ [Clica no botão Favoritar]
+    │   └─ _toggleFavorite() → adiciona/remove
+    └─ [Volta (back button)]
+        └─ Navigator.pop(_favoritesModified)
 ```
 
 ---
 
-## Padrões Utilizados
+## Padrões e Princípios Utilizados
 
-✅ **Arquitetura em Camadas**: Core, Domain, Data, Presentation  
-✅ **Service Pattern**: ProductService, AuthService, FavoritesService centralizam acesso a dados  
-✅ **Model-Service-Screen (MSS)**: Estrutura simplificada MVC/MVVM  
-✅ **FutureBuilder**: Gerenciamento de estado assíncrono  
-✅ **Componentes Reutilizáveis**: Widgets genéricos (ProductCard, FormTextField, ActionButton)  
-✅ **Validação de Formulário**: Validação em tempo real com erro messages  
-✅ **Cache Strategy**: Fallback local se API falhar  
-✅ **Session Management**: Rastreamento de autenticação e estado de usuário  
-✅ **Dependency Injection**: Serviços passados por construtor  
-✅ **Error Handling**: Tratamento centralizado de falhas via core/errors/
+✅ **Separação de Responsabilidades**
+   - Models: Apenas estrutura de dados
+   - Services: Lógica de negócio e API
+   - Screens: Interface e navegação
+   - Widgets: Componentes visuais reutilizáveis
+
+✅ **Dependency Injection**
+   - Serviços passados via construtor
+   - Facilita testes e reutilização
+
+✅ **FutureBuilder**
+   - Gerencia estados assíncrono (loading, erro, sucesso)
+   - Padrão Flutter nativo
+
+✅ **StateManagement com setState()**
+   - Simples e eficiente para estado local
+   - Suficiente para complexidade do projeto
+   - ChangeNotifier em SessionManager para persistência global
+
+✅ **Cache Strategy**
+   - Fallback local se API falhar
+   - Melhora UX em conexão lenta
+
+✅ **Error Handling**
+   - Try/catch em services
+   - CustomException para autenticação
+   - Snackbar para feedback ao usuário
+
+✅ **Persistência**
+   - SharedPreferences para token e favoritos
+   - Sessão restaurada ao iniciar
 
 ---
 
-## Requisitos Implementados
+## Tecnologias e Dependências
 
-| Requisito | Localização | Status |
-|-----------|-------------|--------|
-| **Models com fromJson/toJson** | `models/product.dart`, `models/authenticated_user.dart` | ✅ |
-| **Autenticação** | `services/auth_service.dart`, `screens/login_screen.dart` | ✅ |
-| **CRUD de Produtos** | `services/product_service.dart` | ✅ |
-| **Favoritos** | `services/favorites_service.dart` | ✅ |
-| **Tela Splash** | `screens/splash_screen.dart` | ✅ |
-| **Tela Login** | `screens/login_screen.dart` | ✅ |
-| **Tela Home** | `screens/home_screen.dart` | ✅ |
-| **Listagem (Grid)** | `screens/product_list_screen.dart` | ✅ |
-| **Detalhes** | `screens/product_detail_screen.dart` | ✅ |
-| **Formulário CRUD** | `screens/product_form_screen.dart` | ✅ |
-| **Widgets Reutilizáveis** | `widgets/product_card.dart`, `widgets/form_widgets.dart` | ✅ |
-| **Navegação Entre Telas** | Implementada via Router/Navigator | ✅ |
-| **Cache Local** | Implementado em services | ✅ |
-| **Headers Customizados** | `services/api_headers.dart` | ✅ |
-| **Session Manager** | `services/session_manager.dart` | ✅ |
+| Tecnologia | Uso |
+|------------|-----|
+| **Flutter** | Framework UI |
+| **Dart** | Linguagem |
+| **http** ^1.2.0 | Requisições HTTP |
+| **shared_preferences** ^2.5.3 | Persistência local (token, favoritos) |
+| **cupertino_icons** | Ícones iOS |
 
 ---
 
-## Resumo das Responsabilidades
+## Como o Projeto Atende os Requisitos
 
-| Camada | Responsabilidade |
-|--------|-----------------|
-| **Screens** | Interface com usuário, navegação |
-| **Widgets** | Componentes reutilizáveis |
-| **Services** | Lógica de negócio, API calls, cache |
-| **Models** | Serialização/desserialização de dados |
-| **Core** | Tratamento centralizado de erros |
-| **Data/Domain** | Preparada para crescimento Clean Architecture |
-    → Volta e atualiza tela
+| Requisito | Como Foi Atendido |
+|-----------|-------------------|
+| **Repositório mobile_arquitetura_01** | Pasta criada com nome |
+| **Projeto executável** | main.dart com runApp() |
+| **Organização em camadas** | models/, services/, screens/, widgets/ |
+| **API DummyJSON** | AuthService e ProductService usam https://dummyjson.com |
+| **Tela de login** | login_screen.dart com validação |
+| **POST /auth/login** | AuthService.login() |
+| **Tela principal** | product_list_screen.dart com grid |
+| **GET /products** | ProductService.fetchProducts() |
+| **GET /products/{id}** | ProductService.fetchProductById(id) |
+| **Nome do usuário** | AppBar mostra currentUser.fullName |
+| **Botão logout** | IconButton que chama sessionManager.logout() |
+| **Tela de detalhes** | product_detail_screen.dart |
+| **Navegação** | Navigator.push e Navigator.pop |
+| **Favoritos** | FavoritesService com addFavorite/removeFavorite |
+| **Ícone favorito** | ProductCard com coração preenchido/vazio |
+| **Sincronização** | ProductListScreen recarrega ao voltar |
+| **Persistência** | SharedPreferences para token e favoritos |
+| **Tratamento de loading** | CircularProgressIndicator em FutureBuilder |
+| **Tratamento de erro** | Exibe mensagem de erro e botão retry |
 ```
 
 ### 4. Deleção

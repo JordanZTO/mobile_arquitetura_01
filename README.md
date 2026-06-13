@@ -18,6 +18,10 @@ Atualmente o app consome a API DummyJSON para autenticar usuarios e listar produ
 - Nome e imagem do usuario autenticado no AppBar.
 - Botao de logout.
 - Botao para atualizar manualmente a lista de produtos.
+- **Ícone de favorito na lista de produtos** (coração preenchido/vazio).
+- **Marcar e desmarcar produtos como favoritos**.
+- **Sincronização automática de favoritos entre telas** (lista ↔ detalhes).
+- **Persistência de favoritos com SharedPreferences**.
 - Separacao basica entre modelos, servicos, sessao e telas.
 
 ## Tecnologias usadas
@@ -46,6 +50,7 @@ lib/
     auth_service.dart
     product_service.dart
     session_manager.dart
+    favorites_service.dart
   widgets/
     product_card.dart
 ```

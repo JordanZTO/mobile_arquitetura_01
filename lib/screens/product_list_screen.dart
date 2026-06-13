@@ -26,11 +26,52 @@ class ProductListScreen extends StatefulWidget {
 
 class _ProductListScreenState extends State<ProductListScreen> {
   late Future<List<Product>> _productsFuture;
+  Set<int> _favoriteIds = {};
+  bool _loadingFavorites = true;
 
   @override
   void initState() {
     super.initState();
     _productsFuture = widget.productService.fetchProducts();
+    _loadFavorites();
+  }
+
+  Future<void> _loadFavorites() async {
+    try {
+      final favoriteIds = await widget.favoritesService.getFavorites();
+      if (mounted) {
+        setState(() {
+          _favoriteIds = favoriteIds.toSet();
+          _loadingFavorites = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loadingFavorites = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _toggleFavorite(int productId) async {
+    final isFavorite = _favoriteIds.contains(productId);
+    
+    if (isFavorite) {
+      await widget.favoritesService.removeFavorite(productId);
+      if (mounted) {
+        setState(() {
+          _favoriteIds.remove(productId);
+        });
+      }
+    } else {
+      await widget.favoritesService.addFavorite(productId);
+      if (mounted) {
+        setState(() {
+          _favoriteIds.add(productId);
+        });
+      }
+    }
   }
 
   void _refreshProducts() {
@@ -144,9 +185,11 @@ class _ProductListScreenState extends State<ProductListScreen> {
             itemCount: products.length,
             itemBuilder: (context, index) {
               final product = products[index];
+              final isFavorite = _favoriteIds.contains(product.id);
 
               return ProductCard(
                 product: product,
+                isFavorite: isFavorite,
                 onTap: () {
                   Navigator.push(
                     context,
@@ -157,7 +200,15 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         favoritesService: widget.favoritesService,
                       ),
                     ),
-                  );
+                  ).then((favoritesModified) {
+                    // Se favoritos foram modificados, recarrega a lista
+                    if (favoritesModified == true) {
+                      _loadFavorites();
+                    }
+                  });
+                },
+                onFavoriteTap: () {
+                  _toggleFavorite(product.id);
                 },
               );
             },
