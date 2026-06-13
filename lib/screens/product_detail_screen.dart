@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 
 import '../models/product.dart';
+import '../services/favorites_service.dart';
 import '../services/product_service.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final int productId;
   final ProductService productService;
+  final FavoritesService favoritesService;
 
   const ProductDetailScreen({
     super.key,
     required this.productId,
     required this.productService,
+    required this.favoritesService,
   });
 
   @override
@@ -19,6 +22,7 @@ class ProductDetailScreen extends StatefulWidget {
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   late Future<Product> _productFuture;
+  late Future<bool> _isFavoriteFuture;
 
   @override
   void initState() {
@@ -28,10 +32,40 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   void _loadProduct() {
     _productFuture = widget.productService.fetchProductById(widget.productId);
+    _isFavoriteFuture =
+        widget.favoritesService.isFavorite(widget.productId);
   }
 
   void _retry() {
     setState(_loadProduct);
+  }
+
+  Future<void> _toggleFavorite() async {
+    final isFavorite =
+        await widget.favoritesService.isFavorite(widget.productId);
+
+    if (isFavorite) {
+      await widget.favoritesService.removeFavorite(widget.productId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Removido dos favoritos")),
+        );
+      }
+    } else {
+      await widget.favoritesService.addFavorite(widget.productId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Adicionado aos favoritos")),
+        );
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _isFavoriteFuture =
+            widget.favoritesService.isFavorite(widget.productId);
+      });
+    }
   }
 
   @override
@@ -75,7 +109,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           }
 
           final product = snapshot.data!;
-          return _ProductDetails(product: product);
+          return FutureBuilder<bool>(
+            future: _isFavoriteFuture,
+            builder: (context, favoriteSnapshot) {
+              final isFavorite = favoriteSnapshot.data ?? false;
+              return _ProductDetails(
+                product: product,
+                isFavorite: isFavorite,
+                onFavoriteToggle: _toggleFavorite,
+              );
+            },
+          );
         },
       ),
     );
@@ -84,8 +128,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
 class _ProductDetails extends StatelessWidget {
   final Product product;
+  final bool isFavorite;
+  final VoidCallback onFavoriteToggle;
 
-  const _ProductDetails({required this.product});
+  const _ProductDetails({
+    required this.product,
+    required this.isFavorite,
+    required this.onFavoriteToggle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -181,6 +231,32 @@ class _ProductDetails extends StatelessWidget {
               color: Colors.grey,
               height: 1.6,
             ),
+          ),
+          const SizedBox(height: 30),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Adicionado ao carrinho")),
+                    );
+                  },
+                  icon: const Icon(Icons.shopping_cart),
+                  label: const Text("Carrinho"),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onFavoriteToggle,
+                  icon: Icon(
+                    isFavorite ? Icons.favorite : Icons.favorite_border,
+                  ),
+                  label: Text(isFavorite ? "Favoritado" : "Favoritar"),
+                ),
+              ),
+            ],
           ),
         ],
       ),

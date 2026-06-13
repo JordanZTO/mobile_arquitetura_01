@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:product_app/main.dart';
 import 'package:product_app/services/auth_service.dart';
+import 'package:product_app/services/favorites_service.dart';
 import 'package:product_app/services/product_service.dart';
 import 'package:product_app/services/session_manager.dart';
 
@@ -21,9 +22,14 @@ void main() {
     final productService = ProductService(client);
     final authService = AuthService(client);
     final sessionManager = SessionManager(authService);
+    final favoritesService = FavoritesService();
 
     await tester.pumpWidget(
-      MyApp(productService: productService, sessionManager: sessionManager),
+      MyApp(
+        productService: productService,
+        sessionManager: sessionManager,
+        favoritesService: favoritesService,
+      ),
     );
     await tester.pumpAndSettle();
 

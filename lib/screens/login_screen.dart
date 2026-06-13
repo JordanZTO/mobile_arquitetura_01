@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../services/favorites_service.dart';
 import '../services/product_service.dart';
 import '../services/session_manager.dart';
 import 'product_list_screen.dart';
@@ -53,6 +54,7 @@ class _LoginScreenState extends State<LoginScreen> {
           builder: (_) => ProductListScreen(
             productService: widget.productService,
             sessionManager: widget.sessionManager,
+            favoritesService: FavoritesService(),
           ),
         ),
       );

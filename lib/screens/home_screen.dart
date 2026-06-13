@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'product_list_screen.dart';
+import '../services/favorites_service.dart';
 import '../services/product_service.dart';
 import '../services/session_manager.dart';
 
 class HomeScreen extends StatelessWidget {
   final ProductService productService;
   final SessionManager sessionManager;
+  final FavoritesService favoritesService;
 
   const HomeScreen({
     super.key,
     required this.productService,
     required this.sessionManager,
+    required this.favoritesService,
   });
 
   @override
@@ -45,6 +48,7 @@ class HomeScreen extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (_) => ProductListScreen(
+                      favoritesService: favoritesService,
                       productService: productService,
                       sessionManager: sessionManager,
                     ),

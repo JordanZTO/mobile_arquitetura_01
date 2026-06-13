@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/product.dart';
+import '../services/favorites_service.dart';
 import '../services/product_service.dart';
 import '../services/session_manager.dart';
 import '../widgets/product_card.dart';
@@ -10,11 +11,13 @@ import 'product_detail_screen.dart';
 class ProductListScreen extends StatefulWidget {
   final ProductService productService;
   final SessionManager sessionManager;
+  final FavoritesService favoritesService;
 
   const ProductListScreen({
     super.key,
     required this.productService,
     required this.sessionManager,
+    required this.favoritesService,
   });
 
   @override
@@ -151,6 +154,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       builder: (_) => ProductDetailScreen(
                         productId: product.id,
                         productService: widget.productService,
+                        favoritesService: widget.favoritesService,
                       ),
                     ),
                   );

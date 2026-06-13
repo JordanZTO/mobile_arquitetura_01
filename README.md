@@ -61,12 +61,24 @@ Usuario: emilys
 Senha: emilyspass
 ```
 
+## Recursos implementados
+
+✅ Estrutura em camadas (data, domain, presentation)
+✅ Autenticação com POST /auth/login
+✅ Persistência de sessão com SharedPreferences
+✅ Listagem de produtos com GET /products
+✅ Detalhes do produto com GET /products/{id}
+✅ Sistema de favoritos com persistência
+✅ Validação de formulários
+✅ Tratamento de erros
+✅ Carregamento assíncrono com FutureBuilder
+
 ## Como rodar o projeto
 
 1. Entre na pasta do projeto:
 
 ```bash
-cd mobile_arquitetura_02-main
+cd mobile_arquitetura_01
 ```
 
 2. Instale as dependencias:
